@@ -1,0 +1,193 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Resumen Operativo{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>Dashboard Operativo Nexos</h2>
+        <p class="text-muted">
+            Monitoreo de eventos contratados por año, tipo de servicio y unidades cotizadas.<br>
+            <small>Última actualización: <span id="ultima-actualizacion"></span></small>
+        </p>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <label for="filtro-carrera" class="form-label">Carrera</label>
+        <select class="form-select" id="filtro-carrera">
+            <option value="">Todas las carreras</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label for="filtro-semestre" class="form-label">Semestre</label>
+        <select class="form-select" id="filtro-semestre">
+            <option value="">Todos los semestres</option>
+        </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary" id="btn-aplicar-filtros">Aplicar Filtros</button>
+    </div>
+</div>
+
+<!-- Tarjetas de KPI -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h1 id="total-servicios">0</h1>
+                <p class="mb-0">Total servicios</p>
+                <small>Eventos contratados</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h1 id="total-unidades">0</h1>
+                <p class="mb-0">Total unidades</p>
+                <small>Unidades cotizadas</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h1 id="servicios-mixta">0</h1>
+                <p class="mb-0">Mixta</p>
+                <small id="porcentaje-mixta">0% del total</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h1 id="servicios-area">0</h1>
+                <p class="mb-0">Área</p>
+                <small id="porcentaje-area">0% del total</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico de Servicios por día -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Servicios por día</h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="grafico-servicios-dia"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fechaActual = new Date().toLocaleString('es-CO');
+    document.getElementById('ultima-actualizacion').textContent = fechaActual;
+    
+    // Cargar filtros
+    fetch('/api/filtros/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const selCarrera = document.getElementById('filtro-carrera');
+                const selSemestre = document.getElementById('filtro-semestre');
+                
+                data.carreras.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    selCarrera.appendChild(opt);
+                });
+                
+                data.semestres.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = 'Semestre ' + s;
+                    selSemestre.appendChild(opt);
+                });
+            }
+        });
+    
+    // Función para cargar datos con filtros
+    function cargarResumen(carrera = '', semestre = '') {
+        let url = '/api/resumen/?';
+        if (carrera) url += 'carrera=' + encodeURIComponent(carrera) + '&';
+        if (semestre) url += 'semestre=' + encodeURIComponent(semestre);
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('total-servicios').textContent = data.total_servicios.toLocaleString();
+                    document.getElementById('total-unidades').textContent = data.total_unidades.toLocaleString();
+                    
+                    const tipos = data.tipos;
+                    tipos.forEach(tipo => {
+                        if (tipo.tipo === 'Mixta') {
+                            document.getElementById('servicios-mixta').textContent = tipo.cantidad.toLocaleString();
+                            const pct = ((tipo.cantidad / data.total_servicios) * 100).toFixed(2);
+                            document.getElementById('porcentaje-mixta').textContent = pct + '% del total';
+                        } else {
+                            document.getElementById('servicios-area').textContent = tipo.cantidad.toLocaleString();
+                            const pct = ((tipo.cantidad / data.total_servicios) * 100).toFixed(2);
+                            document.getElementById('porcentaje-area').textContent = pct + '% del total';
+                        }
+                    });
+                }
+            });
+    }
+    
+    // Cargar gráfico de servicios por día
+    function cargarGraficoServicios() {
+        fetch('/api/servicios-por-dia/')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const ctx = document.getElementById('grafico-servicios-dia').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.datos.map(d => d.fecha),
+                            datasets: [{
+                                label: 'Servicios',
+                                data: data.datos.map(d => d.cantidad),
+                                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+            });
+    }
+    
+    // Cargar todo inicialmente
+    cargarResumen();
+    cargarGraficoServicios();
+    
+    // Aplicar filtros
+    document.getElementById('btn-aplicar-filtros').addEventListener('click', function() {
+        const carrera = document.getElementById('filtro-carrera').value;
+        const semestre = document.getElementById('filtro-semestre').value;
+        cargarResumen(carrera, semestre);
+    });
+});
+</script>
+{% endblock %}
