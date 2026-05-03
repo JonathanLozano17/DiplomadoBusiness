@@ -54,9 +54,7 @@ WSGI_APPLICATION = 'Universidad.wsgi.application'
 
 # Base de datos PostgreSQL
 DATABASES = {
-    'default': dj_database_url.config(
-        default='postgres://bussins_user:TU_PASSWORD@dpg-d7rr4fhj2pic73fhv7t0-a:5432/bussins'
-    )
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
 }
 
 LANGUAGE_CODE = 'es-co'
