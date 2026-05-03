@@ -51,14 +51,9 @@ WSGI_APPLICATION = 'Universidad.wsgi.application'
 
 # Base de datos PostgreSQL
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
-    }
+    'default': dj_database_url.config(
+        default='postgres://bussins_user:TU_PASSWORD@dpg-d7rr4fhj2pic73fhv7t0-a:5432/bussins'
+    )
 }
 
 LANGUAGE_CODE = 'es-co'
