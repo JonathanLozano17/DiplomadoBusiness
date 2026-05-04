@@ -31,6 +31,86 @@ def dashboard_kpis(request):
 # ============================================================
 
 def api_resumen(request):
+    """Retorna el resumen operativo (KPIs principales) en JSON con filtros opcionales."""
+    carrera = request.GET.get('carrera', '')
+    semestre = request.GET.get('semestre', '')
+    
+    try:
+        # Construir cláusula WHERE dinámica
+        where_clauses = []
+        params = {}
+        
+        if carrera:
+            where_clauses.append("c.nombre = %(carrera)s")
+            params['carrera'] = carrera
+            
+        if semestre:
+            where_clauses.append("s.semestre = %(semestre)s")
+            params['semestre'] = int(semestre)  # Convertir a entero
+        
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
+        
+        # Total servicios (hechos)
+        query_total = f"""
+            SELECT COUNT(*) as total 
+            FROM F_HechoMatricula f
+            INNER JOIN D_Carrera c ON f.id_carrera = c.id_carrera
+            INNER JOIN D_Semestre s ON f.id_semestre = s.id_semestre
+            {where_sql}
+        """
+        resultado = ejecutar_query(query_total, params if params else None)
+        total_servicios = resultado[0]['total'] if resultado else 0
+
+        # Total unidades (suma de valor_perdida_por_desercion)
+        query_unidades = f"""
+            SELECT COALESCE(SUM(f.valor_perdida_por_desercion), 0) as total 
+            FROM F_HechoMatricula f
+            INNER JOIN D_Carrera c ON f.id_carrera = c.id_carrera
+            INNER JOIN D_Semestre s ON f.id_semestre = s.id_semestre
+            {where_sql}
+        """
+        resultado_unidades = ejecutar_query(query_unidades, params if params else None)
+        total_unidades = float(resultado_unidades[0]['total']) if resultado_unidades else 0.0
+
+        # Servicios por tipo - Consulta simplificada y robusta
+        query_tipos = f"""
+            SELECT 
+                COALESCE(m.tipo, 'sin definir') as tipo,
+                COUNT(*) as cantidad
+            FROM F_HechoMatricula f
+            INNER JOIN D_Motivo m ON f.id_motivo = m.id_motivo
+            INNER JOIN D_Carrera c ON f.id_carrera = c.id_carrera
+            INNER JOIN D_Semestre s ON f.id_semestre = s.id_semestre
+            {where_sql}
+            GROUP BY m.tipo
+            ORDER BY cantidad DESC
+        """
+        tipos = ejecutar_query(query_tipos, params if params else None)
+        
+        # Si no hay datos, devolver estructura vacía pero válida
+        if not tipos:
+            tipos = [{'tipo': 'Área', 'cantidad': 0}, {'tipo': 'Mixta', 'cantidad': 0}]
+
+        return JsonResponse({
+            'success': True,
+            'total_servicios': total_servicios,
+            'total_unidades': total_unidades,
+            'tipos': tipos
+        })
+    except Exception as e:
+        # Para debugging: imprime el error en la consola del servidor
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False, 
+            'error': str(e),
+            'total_servicios': 0,
+            'total_unidades': 0,
+            'tipos': []
+        })
+        
     """Retorna el resumen operativo (KPIs principales) en JSON."""
     try:
         # Total servicios (hechos)
