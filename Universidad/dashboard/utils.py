@@ -1,14 +1,22 @@
 import psycopg2
 from decouple import config
+import dj_database_url
 
 def get_db_connection():
-    """Retorna una conexión a la base de datos PostgreSQL."""
+    """Retorna una conexión a la base de datos usando la URL de configuración."""
+    # Obtenemos la URL del .env
+    db_url = config('DATABASE_URL')
+    
+    # Parseamos la URL para extraer los componentes que necesita psycopg2
+    db_config = dj_database_url.parse(db_url)
+    
     return psycopg2.connect(
-        dbname=config('DB_NAME'),
-        user=config('DB_USER'),
-        password=config('DB_PASSWORD'),
-        host=config('DB_HOST'),
-        port=config('DB_PORT')
+        dbname=db_config['NAME'],
+        user=db_config['USER'],
+        password=db_config['PASSWORD'],
+        host=db_config['HOST'],
+        port=db_config['PORT'],
+        sslmode='require'  # <--- CRÍTICO para conectar a Render desde fuera
     )
 
 def ejecutar_query(query, params=None):

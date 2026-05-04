@@ -36,6 +36,52 @@ def api_resumen(request):
     semestre = request.GET.get('semestre', '')
     
     try:
+        where_clauses = []
+        params = {}
+        
+        if carrera:
+            where_clauses.append("c.nombre = %(carrera)s")
+            params['carrera'] = carrera
+            
+        if semestre:
+            where_clauses.append("s.semestre::text = %(semestre)s") # Convertimos a texto para comparar
+            params['semestre'] = str(semestre)
+        
+        where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+        # Usamos una sola conexión para varias consultas si es posible, 
+        # pero con tu función ejecutar_query está bien así:
+        
+        query_total = f"SELECT COUNT(*) as total FROM F_HechoMatricula f INNER JOIN D_Carrera c ON f.id_carrera = c.id_carrera INNER JOIN D_Semestre s ON f.id_semestre = s.id_semestre {where_sql}"
+        res_total = ejecutar_query(query_total, params)
+        
+        query_unidades = f"SELECT COALESCE(SUM(f.valor_perdida_por_desercion), 0) as total FROM F_HechoMatricula f INNER JOIN D_Carrera c ON f.id_carrera = c.id_carrera INNER JOIN D_Semestre s ON f.id_semestre = s.id_semestre {where_sql}"
+        res_unidades = ejecutar_query(query_unidades, params)
+
+        query_tipos = f"""
+            SELECT m.tipo, COUNT(*) as cantidad
+            FROM F_HechoMatricula f
+            INNER JOIN D_Motivo m ON f.id_motivo = m.id_motivo
+            INNER JOIN D_Carrera c ON f.id_carrera = c.id_carrera
+            INNER JOIN D_Semestre s ON f.id_semestre = s.id_semestre
+            {where_sql}
+            GROUP BY m.tipo
+        """
+        tipos = ejecutar_query(query_tipos, params)
+
+        return JsonResponse({
+            'success': True,
+            'total_servicios': res_total[0]['total'] if res_total else 0,
+            'total_unidades': float(res_unidades[0]['total']) if res_unidades else 0,
+            'tipos': tipos or []
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    """Retorna el resumen operativo (KPIs principales) en JSON con filtros opcionales."""
+    carrera = request.GET.get('carrera', '')
+    semestre = request.GET.get('semestre', '')
+    
+    try:
         # Construir cláusula WHERE dinámica
         where_clauses = []
         params = {}
