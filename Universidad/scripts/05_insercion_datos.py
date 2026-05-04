@@ -4,15 +4,16 @@ import os
 # =============================================================================
 # CONFIGURACIÓN DE RUTAS Y BASE DE DATOS
 # =============================================================================
-INPUT_DIR = 'data/processed/dimensional/'
+INPUT_DIR = '../data/processed/dimensional/'
 
 # Credenciales de la base de datos PostgreSQL
 DB_CONFIG = {
-    'dbname': 'proyecto_universidad', 
-    'user': 'postgres',           
-    'password': '1717',    
-    'host': 'localhost',
-    'port': '5432'
+    'dbname': 'bussins', 
+    'user': 'bussins_user', 
+    'password': 'UVIE4W0kq1O6hQljTbY0mxjwbM7wDXPG',
+    'host': 'dpg-d7rr4fhj2pic73fhv7t0-a.oregon-postgres.render.com',
+    'port': '5432',
+    'sslmode': 'require'  # <-- OBLIGATORIO para Render
 }
 
 # ORDEN ESTRICTO DE INSERCIÓN (Para respetar las Llaves Foráneas)
