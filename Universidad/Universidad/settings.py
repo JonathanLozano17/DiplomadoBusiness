@@ -1,6 +1,9 @@
 import os
 from decouple import config, Csv
 from pathlib import Path
+import dj_database_url
+
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -51,14 +54,7 @@ WSGI_APPLICATION = 'Universidad.wsgi.application'
 
 # Base de datos PostgreSQL
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
-    }
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
 }
 
 LANGUAGE_CODE = 'es-co'
